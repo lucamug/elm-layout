@@ -2,6 +2,10 @@
 
 Testing a responsive layout with elm-ui
 
+## Demo
+
+[http://elm-layout.surge.sh/](http://elm-layout.surge.sh/)
+
 ## Commands
 
 ```
