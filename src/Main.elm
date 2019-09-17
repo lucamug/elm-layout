@@ -31,6 +31,7 @@ type alias Model =
     { x : Int
     , y : Int
     , emptyPage : Bool
+    , longContent : Bool
     }
 
 
@@ -39,6 +40,7 @@ init flags =
     ( { x = flags.x
       , y = flags.y
       , emptyPage = flags.emptyPage
+      , longContent = True
       }
     , Cmd.none
     )
@@ -47,6 +49,8 @@ init flags =
 type Msg
     = DoNothing
     | OnResize Int Int
+    | ChangeHeight String
+    | ToggleContent
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -58,9 +62,17 @@ update msg model =
         OnResize x y ->
             ( { model | x = x, y = y }, Cmd.none )
 
+        ToggleContent ->
+            ( { model | longContent = not model.longContent }, Cmd.none )
+
+        ChangeHeight y ->
+            ( { model | y = Maybe.withDefault 0 (String.toInt y) }, Cmd.none )
+
 
 isMobile : Model -> Bool
 isMobile model =
+    -- Careful here that sometime when a page is embedded in "custom tabs",
+    -- the vertical height (model.y) can be zero or negative
     model.x < mobileMaxWidth || model.y < mobileMaxWidth
 
 
@@ -83,6 +95,9 @@ view model =
             else
                 el
                     [ width (px maxContentWidth |> maximum (model.x - marginAroundWidgetWhenNotMobile))
+
+                    -- Careful here that sometime when a page is embedded in "custom tabs",
+                    -- the vertical height (model.y) can be zero or negative
                     , height (shrink |> maximum (model.y - marginAroundWidgetWhenNotMobile))
                     , Border.width 20
                     , Border.color <| rgb 1 0.9 0.0 -- yellow
@@ -147,6 +162,8 @@ view model =
                     , viewBool (isMobile model)
                     ]
                 , paragraph [] [ text <| "isScrollbarY = not <| isMobile && isEmptyPage = ", viewBool scrollbarY_ ]
+                , Input.text [] { label = Input.labelAbove [] <| text "Height", onChange = ChangeHeight, placeholder = Nothing, text = String.fromInt model.y }
+                , paragraph [] [ text " Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla vehicula leo imperdiet, efficitur velit at, congue dui. Curabitur dictum et orci eu mattis. Sed eu velit sem. Proin ac fringilla metus, eget feugiat est. Nulla facilisi. Proin ipsum ex, vestibulum eget tempor tempus, vehicula ut mauris. Integer sit amet eros velit. Donec non congue ante. Nunc a nibh eget quam sagittis interdum. Curabitur non finibus tellus, vitae accumsan diam." ]
                 , Input.text [] { label = Input.labelAbove [] <| text "Field A", onChange = \_ -> DoNothing, placeholder = Nothing, text = "" }
                 , paragraph [] [ text " Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla vehicula leo imperdiet, efficitur velit at, congue dui. Curabitur dictum et orci eu mattis. Sed eu velit sem. Proin ac fringilla metus, eget feugiat est. Nulla facilisi. Proin ipsum ex, vestibulum eget tempor tempus, vehicula ut mauris. Integer sit amet eros velit. Donec non congue ante. Nunc a nibh eget quam sagittis interdum. Curabitur non finibus tellus, vitae accumsan diam." ]
                 , Input.text [] { label = Input.labelAbove [] <| text "Field B", onChange = \_ -> DoNothing, placeholder = Nothing, text = "" }
