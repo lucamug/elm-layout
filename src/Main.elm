@@ -126,15 +126,26 @@ view model =
                     content_2
 
                 else
+                    -- This is the cover that goes below the widget
+                    -- This distribution is needed to avoid that clicking
+                    -- on the widget would close it. Only clicking on the
+                    -- cover should close the widget
                     el
-                        [ Border.width 10
-                        , Border.color <| rgb 1 0 1 -- purple
-                        , Background.color <| rgba 1 0 1 0.3 -- purple
-                        , width fill
+                        [ width fill
                         , height fill
+                        , inFront content_2
                         ]
                     <|
-                        content_2
+                        el
+                            [ Border.width 10
+                            , Border.color <| rgb 1 0 1 -- purple
+                            , Background.color <| rgba 1 0 1 0.3 -- purple
+                            , width fill
+                            , height fill
+                            , htmlAttribute <| Html.Events.onClick ToggleEnabled
+                            ]
+                        <|
+                            none
 
             content_2 =
                 if isSmallDevice model then
