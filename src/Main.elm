@@ -12,6 +12,24 @@ import Html.Attributes
 import Html.Events
 
 
+type alias Conf =
+    { border_rounded : Int
+    , layer_1_background_color : Color
+    , layer_1_border_color : Color
+    , layer_1_border_size : Int
+    , layer_2_background_color : Color
+    , layer_2_border_color : Color
+    , layer_2_border_size : Int
+    , layer_3_background_color : Color
+    , layer_3_border_color : Color
+    , layer_3_border_size : Int
+    , layer_4_background_color : Color
+    , layer_4_border_color : Color
+    , layer_4_border_size : Int
+    }
+
+
+confTesting : Conf
 confTesting =
     { layer_1_border_color = rgb 0 0.7 0 -- green
     , layer_1_background_color = rgba 0 0.7 0 0.3 -- green
@@ -29,6 +47,7 @@ confTesting =
     }
 
 
+confRegular : Conf
 confRegular =
     { layer_1_border_color = rgb 1 1 1
     , layer_1_background_color = rgba 0 0 0 0.1
@@ -46,6 +65,7 @@ confRegular =
     }
 
 
+conf : { a | testing : Bool } -> Conf
 conf model =
     if model.testing then
         confTesting
@@ -228,6 +248,12 @@ view model =
                         , Border.color <| .layer_3_border_color (conf model) -- red
                         , Background.color <| .layer_3_background_color (conf model) -- red
                         , Border.width <| .layer_3_border_size (conf model)
+                        , Border.shadow
+                            { offset = ( 0, 0 )
+                            , size = 0
+                            , blur = 10
+                            , color = rgba 0 0 0 0.5
+                            }
                         ]
                     <|
                         layer_4

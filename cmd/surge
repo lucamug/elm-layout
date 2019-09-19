@@ -1,4 +1,4 @@
 #!/bin/bash
 set -e
 
-./node_modules/.bin/surge docs --domain elm-layout.surge.sh
+./node_modules/.bin/surge docs --domain elm-layout2.surge.sh
