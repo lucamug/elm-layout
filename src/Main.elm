@@ -12,6 +12,48 @@ import Html.Attributes
 import Html.Events
 
 
+confTesting =
+    { layer_1_border_color = rgb 0 0.7 0 -- green
+    , layer_1_background_color = rgba 0 0.7 0 0.3 -- green
+    , layer_1_border_size = 10
+    , layer_2_border_color = rgb 1 0 1 -- purple
+    , layer_2_background_color = rgba 1 0 1 0.3 -- purple
+    , layer_2_border_size = 10
+    , layer_3_border_color = rgba 0.9 0 0 0.5 -- red
+    , layer_3_background_color = rgba 0.9 0 0.5 0.3 -- red
+    , layer_3_border_size = 10
+    , layer_4_border_color = rgb 0.8 0.8 0.0 -- yellow
+    , layer_4_background_color = rgba 1 1 0.5 0.8 -- yellow
+    , layer_4_border_size = 10
+    , border_rounded = 60
+    }
+
+
+confRegular =
+    { layer_1_border_color = rgb 1 1 1
+    , layer_1_background_color = rgba 0 0 0 0.1
+    , layer_1_border_size = 0
+    , layer_2_border_color = rgb 1 1 1
+    , layer_2_background_color = rgba 0 0 0 0.1
+    , layer_2_border_size = 0
+    , layer_3_border_color = rgb 0.7 0.7 0.7
+    , layer_3_background_color = rgba 1 1 1 1
+    , layer_3_border_size = 1
+    , layer_4_border_color = rgb 1 1 1
+    , layer_4_background_color = rgba 1 1 1 1
+    , layer_4_border_size = 0
+    , border_rounded = 20
+    }
+
+
+conf model =
+    if model.testing then
+        confTesting
+
+    else
+        confRegular
+
+
 smallDeviceMaxSize : Int
 smallDeviceMaxSize =
     -- iPhone plus width = 414
@@ -36,6 +78,7 @@ type alias Model =
     , enabled : Bool
     , text : String
     , ua : String
+    , testing : Bool
     }
 
 
@@ -48,6 +91,7 @@ init flags =
       , enabled = True
       , text = ""
       , ua = flags.ua
+      , testing = True
       }
     , Cmd.none
     )
@@ -60,6 +104,7 @@ type Msg
     | ChangeWidth String
     | ToggleContent
     | ToggleEnabled
+    | ToggleTesting
     | ChangeText String
 
 
@@ -77,6 +122,9 @@ update msg model =
 
         ToggleEnabled ->
             ( { model | enabled = not model.enabled }, Cmd.none )
+
+        ToggleTesting ->
+            ( { model | testing = not model.testing }, Cmd.none )
 
         ChangeHeight y ->
             ( { model | y = Maybe.withDefault 0 (String.toInt y) }, Cmd.none )
@@ -106,7 +154,7 @@ viewBool bool =
 
 buttonAttrs : List (Attribute msg)
 buttonAttrs =
-    [ paddingXY 20 8
+    [ paddingXY 10 6
     , Border.width 1
     , Border.color <| rgba 0 0 0 0.2
     , Border.rounded 20
@@ -121,35 +169,51 @@ view model =
 
     else
         let
-            content_1 =
+            layersList =
+                [ ( .layer_1_border_color (conf model), .layer_1_background_color (conf model) ) ]
+                    ++ (if model.emptyPage || isSmallDevice model then
+                            []
+
+                        else
+                            [ ( .layer_2_border_color (conf model), .layer_2_background_color (conf model) ) ]
+                       )
+                    ++ (if isSmallDevice model then
+                            []
+
+                        else
+                            [ ( .layer_3_border_color (conf model), .layer_3_background_color (conf model) ) ]
+                       )
+                    ++ [ ( .layer_4_border_color (conf model), .layer_4_background_color (conf model) ) ]
+
+            layer_2 =
                 if model.emptyPage || isSmallDevice model then
-                    content_2
+                    layer_3
 
                 else
                     -- This is the cover that goes below the widget
-                    -- This distribution is needed to avoid that clicking
+                    -- This layout is needed to avoid that clicking
                     -- on the widget would close it. Only clicking on the
                     -- cover should close the widget
                     el
                         [ width fill
                         , height fill
-                        , inFront content_2
+                        , inFront layer_3
                         ]
                     <|
                         el
-                            [ Border.width 10
-                            , Border.color <| rgb 1 0 1 -- purple
-                            , Background.color <| rgba 1 0 1 0.3 -- purple
-                            , width fill
+                            [ width fill
                             , height fill
                             , htmlAttribute <| Html.Events.onClick ToggleEnabled
+                            , Border.color <| .layer_2_border_color (conf model) -- purple
+                            , Background.color <| .layer_2_background_color (conf model) -- purple
+                            , Border.width <| .layer_2_border_size (conf model)
                             ]
                         <|
                             none
 
-            content_2 =
+            layer_3 =
                 if isSmallDevice model then
-                    content_3
+                    layer_4
 
                 else
                     el
@@ -158,15 +222,15 @@ view model =
                         -- Careful here that sometime when a page is embedded in "custom tabs",
                         -- the vertical height (model.y) can be zero or negative
                         , height (shrink |> maximum (model.y - marginAroundWidgetWhenNotMobile))
-                        , Border.width 20
-                        , Border.color <| rgba 0.9 0 0 0.5 -- red
-                        , Border.rounded 60
                         , centerX
                         , centerY
-                        , Background.color <| rgba 1 1 0.8 0.7
+                        , Border.rounded <| .border_rounded (conf model)
+                        , Border.color <| .layer_3_border_color (conf model) -- red
+                        , Background.color <| .layer_3_background_color (conf model) -- red
+                        , Border.width <| .layer_3_border_size (conf model)
                         ]
                     <|
-                        content_3
+                        layer_4
 
             isTheInnerPartScrollingVertically =
                 not <| isSmallDevice model && model.emptyPage
@@ -185,16 +249,22 @@ view model =
                 else
                     link buttonAttrs { label = text "Empty Page", url = "index-empty.html" }
 
-            content_3 =
+            layer_4 =
                 column
-                    ([ paddingXY 20 20
+                    ([ paddingXY 30 30
                      , spacing 20
                      , width (fill |> maximum maxContentWidth)
                      , height fill
                      , centerX
-                     , Border.width 10
-                     , Border.color <| rgb 0.8 0.8 0.0 -- yellow
-                     , Background.color <| rgba 1 1 0.5 0.8 -- yellow
+                     , Border.rounded <|
+                        if isSmallDevice model then
+                            0
+
+                        else
+                            .border_rounded (conf model)
+                     , Border.color <| .layer_4_border_color (conf model) -- yellow
+                     , Background.color <| .layer_4_background_color (conf model) -- yellow
+                     , Border.width <| .layer_4_border_size (conf model)
                      ]
                         ++ (if isTheInnerPartScrollingVertically then
                                 [ scrollbarY ]
@@ -204,11 +274,11 @@ view model =
                            )
                     )
                     ([ title
-                     , wrappedRow [ spacing 20 ]
+                     , wrappedRow [ spacing 6 ]
                         [ Input.button buttonAttrs { onPress = Just ToggleEnabled, label = text "Disable" }
-                        , Input.button buttonAttrs { onPress = Just ToggleContent, label = text "Toggle extra content" }
-
-                        -- , toggleLink
+                        , Input.button buttonAttrs { onPress = Just ToggleContent, label = text "Extra content" }
+                        , Input.button buttonAttrs { onPress = Just ToggleTesting, label = text "Testing" }
+                        , toggleLink
                         ]
                      , paragraph [] [ text <| "x = " ++ String.fromInt model.x ++ ", y = " ++ String.fromInt model.y ]
                      , row [ spacing 20, width fill ]
@@ -217,7 +287,25 @@ view model =
                         ]
                      ]
                         ++ (if model.extraContent then
-                                [ paragraph [] [ text <| "smallDeviceMaxSize = ", text <| String.fromInt smallDeviceMaxSize ]
+                                [ paragraph []
+                                    ([ text <| "layers: " ]
+                                        ++ List.indexedMap
+                                            (\index colors ->
+                                                el
+                                                    [ Background.color (Tuple.second colors)
+                                                    , Border.color (Tuple.first colors)
+                                                    , Border.width 4
+                                                    , padding 6
+                                                    ]
+                                                <|
+                                                    text <|
+                                                        String.fromInt <|
+                                                            index
+                                                                + 1
+                                            )
+                                            layersList
+                                    )
+                                , paragraph [] [ text <| "smallDeviceMaxSize = ", text <| String.fromInt smallDeviceMaxSize ]
                                 , paragraph [] <|
                                     [ text <| "isEmptyPage = "
                                     , viewBool model.emptyPage
@@ -248,20 +336,20 @@ view model =
                     )
 
             layoutAttrs =
-                [ Border.width 10
-                , Font.size 16
+                [ Font.size 16
                 , Font.family []
-                , Border.color <| rgb 0 0.7 0 -- green
-                , Background.color <| rgba 0 0.7 0 0.2 -- green
+                , Border.color <| .layer_1_border_color (conf model)
+                , Background.color <| .layer_1_background_color (conf model)
+                , Border.width <| .layer_1_border_size (conf model)
                 ]
         in
         if model.emptyPage then
-            layout layoutAttrs content_1
+            layout layoutAttrs layer_2
 
         else
             layout
                 (layoutAttrs
-                    ++ [ inFront content_1
+                    ++ [ inFront layer_2
 
                        -- This min-height is needed to collapse the main
                        -- container when the page is not empty because
