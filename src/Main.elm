@@ -248,12 +248,6 @@ view model =
                         , Border.color <| .layer_3_border_color (conf model) -- red
                         , Background.color <| .layer_3_background_color (conf model) -- red
                         , Border.width <| .layer_3_border_size (conf model)
-                        , Border.shadow
-                            { offset = ( 0, 0 )
-                            , size = 0
-                            , blur = 10
-                            , color = rgba 0 0 0 0.5
-                            }
                         ]
                     <|
                         layer_4
@@ -291,6 +285,12 @@ view model =
                      , Border.color <| .layer_4_border_color (conf model) -- yellow
                      , Background.color <| .layer_4_background_color (conf model) -- yellow
                      , Border.width <| .layer_4_border_size (conf model)
+                     , Border.shadow
+                        { offset = ( 0, 0 )
+                        , size = 0
+                        , blur = 10
+                        , color = rgba 0 0 0 0.6
+                        }
                      ]
                         ++ (if isTheInnerPartScrollingVertically then
                                 [ scrollbarY ]
@@ -342,7 +342,7 @@ view model =
                                     ]
                                 , paragraph [] [ text <| "isTheInnerPartScrollingVertically = ", viewBool isTheInnerPartScrollingVertically ]
                                 , paragraph [] [ text <| "ua = " ++ model.ua ]
-                                , paragraph [] [ text " Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla vehicula leo imperdiet, efficitur velit at, congue dui. Curabitur dictum et orci eu mattis. Sed eu velit sem. Proin ac fringilla metus, eget feugiat est. Nulla facilisi. Proin ipsum ex, vestibulum eget tempor tempus, vehicula ut mauris. Integer sit amet eros velit. Donec non congue ante. Nunc a nibh eget quam sagittis interdum. Curabitur non finibus tellus, vitae accumsan diam." ]
+                                , paragraph [ spacing 200, Font.color <| rgb 1 0 0 ] [ text " Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla vehicula leo imperdiet, efficitur velit at, congue dui. Curabitur dictum et orci eu mattis. Sed eu velit sem. Proin ac fringilla metus, eget feugiat est. Nulla facilisi. Proin ipsum ex, vestibulum eget tempor tempus, vehicula ut mauris. Integer sit amet eros velit. Donec non congue ante. Nunc a nibh eget quam sagittis interdum. Curabitur non finibus tellus, vitae accumsan diam." ]
                                 , Input.text [] { label = Input.labelAbove [] <| text "Field A", onChange = ChangeText, placeholder = Nothing, text = model.text }
                                 , paragraph [] [ text " Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla vehicula leo imperdiet, efficitur velit at, congue dui. Curabitur dictum et orci eu mattis. Sed eu velit sem. Proin ac fringilla metus, eget feugiat est. Nulla facilisi. Proin ipsum ex, vestibulum eget tempor tempus, vehicula ut mauris. Integer sit amet eros velit. Donec non congue ante. Nunc a nibh eget quam sagittis interdum. Curabitur non finibus tellus, vitae accumsan diam." ]
                                 , Input.text [] { label = Input.labelAbove [] <| text "Field B", onChange = ChangeText, placeholder = Nothing, text = model.text }
@@ -364,10 +364,21 @@ view model =
             layoutAttrs =
                 [ Font.size 16
                 , Font.family []
+
+                -- , Font.color <| rgb 1 0 0
                 , Border.color <| .layer_1_border_color (conf model)
                 , Background.color <| .layer_1_background_color (conf model)
                 , Border.width <| .layer_1_border_size (conf model)
                 ]
+                    ++ (if False then
+                            -- [ htmlAttribute <| Html.Attributes.style "position" "absolute"
+                            -- , htmlAttribute <| Html.Attributes.style "top" "0"
+                            -- ]
+                            []
+
+                        else
+                            []
+                       )
         in
         if model.emptyPage then
             layout layoutAttrs layer_2
@@ -380,7 +391,7 @@ view model =
                        -- This min-height is needed to collapse the main
                        -- container when the page is not empty because
                        -- elm-ui always add "min-height: 100%"
-                       , htmlAttribute <| Html.Attributes.style "min-height" "0"
+                       -- , htmlAttribute <| Html.Attributes.style "min-height" "0"
                        ]
                 )
             <|
