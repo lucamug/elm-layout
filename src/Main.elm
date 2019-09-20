@@ -10,6 +10,12 @@ import Element.Input as Input
 import Html
 import Html.Attributes
 import Html.Events
+import Json.Decode
+
+
+idCover : String
+idCover =
+    "cover"
 
 
 type alias Conf =
@@ -65,8 +71,8 @@ confRegular =
     }
 
 
-conf : { a | testing : Bool } -> Conf
-conf model =
+layoutTestingConf : { a | testing : Bool } -> Conf
+layoutTestingConf model =
     if model.testing then
         confTesting
 
@@ -126,6 +132,22 @@ type Msg
     | ToggleEnabled
     | ToggleTesting
     | ChangeText String
+    | ClickOnCover MouseClickData
+
+
+type alias MouseClickData =
+    { id1 : String
+    , id2 : String
+    , id3 : String
+    }
+
+
+clickDecoder : Json.Decode.Decoder MouseClickData
+clickDecoder =
+    Json.Decode.map3 MouseClickData
+        (Json.Decode.at [ "target", "id" ] Json.Decode.string)
+        (Json.Decode.at [ "target", "parentElement", "id" ] Json.Decode.string)
+        (Json.Decode.at [ "target", "parentElement", "parentElement", "id" ] Json.Decode.string)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -155,6 +177,13 @@ update msg model =
         ChangeText text ->
             ( { model | text = text }, Cmd.none )
 
+        ClickOnCover mouseClickData ->
+            if not model.emptyPage && mouseClickData.id1 == idCover then
+                ( { model | enabled = not model.enabled }, Cmd.none )
+
+            else
+                ( model, Cmd.none )
+
 
 isSmallDevice : Model -> Bool
 isSmallDevice model =
@@ -182,6 +211,141 @@ buttonAttrs =
     ]
 
 
+isTheInnerPartScrollingVertically : Model -> Bool
+isTheInnerPartScrollingVertically model =
+    not <| isSmallDevice model && model.emptyPage
+
+
+title : { a | emptyPage : Bool } -> Element msg
+title model =
+    if model.emptyPage then
+        el [ Font.size 30 ] <| text "Empty Page"
+
+    else
+        el [ Font.size 30 ] <| text "NOT Empty Page"
+
+
+layersList : Model -> List ( Color, Color )
+layersList model =
+    [ ( .layer_1_border_color (layoutTestingConf model), .layer_1_background_color (layoutTestingConf model) ) ]
+        ++ (if model.emptyPage || isSmallDevice model then
+                []
+
+            else
+                [ ( .layer_2_border_color (layoutTestingConf model), .layer_2_background_color (layoutTestingConf model) ) ]
+           )
+        -- ++ (if isSmallDevice model then
+        --         []
+        --
+        --     else
+        --         [ ( .layer_3_border_color (layoutTestingConf model), .layer_3_background_color (layoutTestingConf model) ) ]
+        --    )
+        ++ [ ( .layer_4_border_color (layoutTestingConf model), .layer_4_background_color (layoutTestingConf model) ) ]
+
+
+toggleLink : { a | emptyPage : Bool } -> Element msg
+toggleLink model =
+    if model.emptyPage then
+        link buttonAttrs { label = text "NOT Empty Page", url = "index-not-empty.html" }
+
+    else
+        link buttonAttrs { label = text "Empty Page", url = "index-empty.html" }
+
+
+layer_4 : Model -> Element Msg
+layer_4 model =
+    column
+        ([ paddingXY 30 30
+         , spacing 20
+         , width (fill |> maximum maxContentWidth)
+         , height fill
+         , centerX
+         , Border.rounded <|
+            if isSmallDevice model then
+                0
+
+            else
+                .border_rounded (layoutTestingConf model)
+         , Border.color <| .layer_4_border_color (layoutTestingConf model) -- yellow
+         , Background.color <| .layer_4_background_color (layoutTestingConf model) -- yellow
+         , Border.width <| .layer_4_border_size (layoutTestingConf model)
+         , Border.shadow
+            { offset = ( 0, 0 )
+            , size = 0
+            , blur = 10
+            , color = rgba 0 0 0 0.6
+            }
+         ]
+            ++ (if isTheInnerPartScrollingVertically model then
+                    [ scrollbarY ]
+
+                else
+                    []
+               )
+        )
+        ([ title model
+         , wrappedRow [ spacing 6 ]
+            [ Input.button buttonAttrs { onPress = Just ToggleEnabled, label = text "Disable" }
+            , Input.button buttonAttrs { onPress = Just ToggleContent, label = text "Extra content" }
+            , Input.button buttonAttrs { onPress = Just ToggleTesting, label = text "Testing" }
+            , toggleLink model
+            ]
+         , paragraph [] [ text <| "x = " ++ String.fromInt model.x ++ ", y = " ++ String.fromInt model.y ]
+         , row [ spacing 20, width fill ]
+            [ Input.text [] { label = Input.labelAbove [] <| text "Width", onChange = ChangeWidth, placeholder = Nothing, text = String.fromInt model.x }
+            , Input.text [] { label = Input.labelAbove [] <| text "Height", onChange = ChangeHeight, placeholder = Nothing, text = String.fromInt model.y }
+            ]
+         ]
+            ++ (if model.extraContent then
+                    [ paragraph []
+                        ([ text <| "layers: " ]
+                            ++ List.indexedMap
+                                (\index colors ->
+                                    el
+                                        [ Background.color (Tuple.second colors)
+                                        , Border.color (Tuple.first colors)
+                                        , Border.width 4
+                                        , padding 6
+                                        ]
+                                    <|
+                                        text <|
+                                            String.fromInt <|
+                                                index
+                                                    + 1
+                                )
+                                (layersList model)
+                        )
+                    , paragraph [] [ text <| "smallDeviceMaxSize = ", text <| String.fromInt smallDeviceMaxSize ]
+                    , paragraph [] <|
+                        [ text <| "isEmptyPage = "
+                        , viewBool model.emptyPage
+                        ]
+                    , paragraph []
+                        [ text <| "isSmallDevice = "
+                        , viewBool (isSmallDevice model)
+                        ]
+                    , paragraph [] [ text <| "isTheInnerPartScrollingVertically = ", viewBool <| isTheInnerPartScrollingVertically model ]
+                    , paragraph [] [ text <| "ua = " ++ model.ua ]
+                    , paragraph [] [ text " Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla vehicula leo imperdiet, efficitur velit at, congue dui. Curabitur dictum et orci eu mattis. Sed eu velit sem. Proin ac fringilla metus, eget feugiat est. Nulla facilisi. Proin ipsum ex, vestibulum eget tempor tempus, vehicula ut mauris. Integer sit amet eros velit. Donec non congue ante. Nunc a nibh eget quam sagittis interdum. Curabitur non finibus tellus, vitae accumsan diam." ]
+                    , Input.text [] { label = Input.labelAbove [] <| text "Field A", onChange = ChangeText, placeholder = Nothing, text = model.text }
+                    , paragraph [] [ text " Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla vehicula leo imperdiet, efficitur velit at, congue dui. Curabitur dictum et orci eu mattis. Sed eu velit sem. Proin ac fringilla metus, eget feugiat est. Nulla facilisi. Proin ipsum ex, vestibulum eget tempor tempus, vehicula ut mauris. Integer sit amet eros velit. Donec non congue ante. Nunc a nibh eget quam sagittis interdum. Curabitur non finibus tellus, vitae accumsan diam." ]
+                    , Input.text [] { label = Input.labelAbove [] <| text "Field B", onChange = ChangeText, placeholder = Nothing, text = model.text }
+                    , paragraph [] [ text " Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla vehicula leo imperdiet, efficitur velit at, congue dui. Curabitur dictum et orci eu mattis. Sed eu velit sem. Proin ac fringilla metus, eget feugiat est. Nulla facilisi. Proin ipsum ex, vestibulum eget tempor tempus, vehicula ut mauris. Integer sit amet eros velit. Donec non congue ante. Nunc a nibh eget quam sagittis interdum. Curabitur non finibus tellus, vitae accumsan diam." ]
+                    , Input.text [] { label = Input.labelAbove [] <| text "Field C", onChange = ChangeText, placeholder = Nothing, text = model.text }
+                    , paragraph [] [ text " Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla vehicula leo imperdiet, efficitur velit at, congue dui. Curabitur dictum et orci eu mattis. Sed eu velit sem. Proin ac fringilla metus, eget feugiat est. Nulla facilisi. Proin ipsum ex, vestibulum eget tempor tempus, vehicula ut mauris. Integer sit amet eros velit. Donec non congue ante. Nunc a nibh eget quam sagittis interdum. Curabitur non finibus tellus, vitae accumsan diam." ]
+                    , Input.text [] { label = Input.labelAbove [] <| text "Field D", onChange = ChangeText, placeholder = Nothing, text = model.text }
+                    , paragraph [] [ text " Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla vehicula leo imperdiet, efficitur velit at, congue dui. Curabitur dictum et orci eu mattis. Sed eu velit sem. Proin ac fringilla metus, eget feugiat est. Nulla facilisi. Proin ipsum ex, vestibulum eget tempor tempus, vehicula ut mauris. Integer sit amet eros velit. Donec non congue ante. Nunc a nibh eget quam sagittis interdum. Curabitur non finibus tellus, vitae accumsan diam." ]
+                    , Input.text [] { label = Input.labelAbove [] <| text "Field E", onChange = ChangeText, placeholder = Nothing, text = model.text }
+                    , paragraph [] [ text " Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla vehicula leo imperdiet, efficitur velit at, congue dui. Curabitur dictum et orci eu mattis. Sed eu velit sem. Proin ac fringilla metus, eget feugiat est. Nulla facilisi. Proin ipsum ex, vestibulum eget tempor tempus, vehicula ut mauris. Integer sit amet eros velit. Donec non congue ante. Nunc a nibh eget quam sagittis interdum. Curabitur non finibus tellus, vitae accumsan diam." ]
+                    , Input.text [] { label = Input.labelAbove [] <| text "Field F", onChange = ChangeText, placeholder = Nothing, text = model.text }
+                    ]
+
+                else
+                    []
+               )
+        )
+
+
 view : Model -> Html.Html Msg
 view model =
     if not model.enabled then
@@ -189,51 +353,12 @@ view model =
 
     else
         let
-            layersList =
-                [ ( .layer_1_border_color (conf model), .layer_1_background_color (conf model) ) ]
-                    ++ (if model.emptyPage || isSmallDevice model then
-                            []
-
-                        else
-                            [ ( .layer_2_border_color (conf model), .layer_2_background_color (conf model) ) ]
-                       )
-                    ++ (if isSmallDevice model then
-                            []
-
-                        else
-                            [ ( .layer_3_border_color (conf model), .layer_3_background_color (conf model) ) ]
-                       )
-                    ++ [ ( .layer_4_border_color (conf model), .layer_4_background_color (conf model) ) ]
-
             layer_2 =
-                if model.emptyPage || isSmallDevice model then
-                    layer_3
-
-                else
-                    -- This is the cover that goes below the widget
-                    -- This layout is needed to avoid that clicking
-                    -- on the widget would close it. Only clicking on the
-                    -- cover should close the widget
-                    el
-                        [ width fill
-                        , height fill
-                        , inFront layer_3
-                        ]
-                    <|
-                        el
-                            [ width fill
-                            , height fill
-                            , htmlAttribute <| Html.Events.onClick ToggleEnabled
-                            , Border.color <| .layer_2_border_color (conf model) -- purple
-                            , Background.color <| .layer_2_background_color (conf model) -- purple
-                            , Border.width <| .layer_2_border_size (conf model)
-                            ]
-                        <|
-                            none
+                layer_3
 
             layer_3 =
                 if isSmallDevice model then
-                    layer_4
+                    layer_4 model
 
                 else
                     el
@@ -244,158 +369,35 @@ view model =
                         , height (shrink |> maximum (model.y - marginAroundWidgetWhenNotMobile))
                         , centerX
                         , centerY
-                        , Border.rounded <| .border_rounded (conf model)
-                        , Border.color <| .layer_3_border_color (conf model) -- red
-                        , Background.color <| .layer_3_background_color (conf model) -- red
-                        , Border.width <| .layer_3_border_size (conf model)
+                        , Border.rounded <| .border_rounded (layoutTestingConf model)
+                        , Border.color <| .layer_3_border_color (layoutTestingConf model) -- red
+                        , Background.color <| .layer_3_background_color (layoutTestingConf model) -- red
+                        , Border.width <| .layer_3_border_size (layoutTestingConf model)
                         ]
                     <|
-                        layer_4
-
-            isTheInnerPartScrollingVertically =
-                not <| isSmallDevice model && model.emptyPage
-
-            title =
-                if model.emptyPage then
-                    el [ Font.size 30 ] <| text "Empty Page"
-
-                else
-                    el [ Font.size 30 ] <| text "NOT Empty Page"
-
-            toggleLink =
-                if model.emptyPage then
-                    link buttonAttrs { label = text "NOT Empty Page", url = "index-not-empty.html" }
-
-                else
-                    link buttonAttrs { label = text "Empty Page", url = "index-empty.html" }
-
-            layer_4 =
-                column
-                    ([ paddingXY 30 30
-                     , spacing 20
-                     , width (fill |> maximum maxContentWidth)
-                     , height fill
-                     , centerX
-                     , Border.rounded <|
-                        if isSmallDevice model then
-                            0
-
-                        else
-                            .border_rounded (conf model)
-                     , Border.color <| .layer_4_border_color (conf model) -- yellow
-                     , Background.color <| .layer_4_background_color (conf model) -- yellow
-                     , Border.width <| .layer_4_border_size (conf model)
-                     , Border.shadow
-                        { offset = ( 0, 0 )
-                        , size = 0
-                        , blur = 10
-                        , color = rgba 0 0 0 0.6
-                        }
-                     ]
-                        ++ (if isTheInnerPartScrollingVertically then
-                                [ scrollbarY ]
-
-                            else
-                                []
-                           )
-                    )
-                    ([ title
-                     , wrappedRow [ spacing 6 ]
-                        [ Input.button buttonAttrs { onPress = Just ToggleEnabled, label = text "Disable" }
-                        , Input.button buttonAttrs { onPress = Just ToggleContent, label = text "Extra content" }
-                        , Input.button buttonAttrs { onPress = Just ToggleTesting, label = text "Testing" }
-                        , toggleLink
-                        ]
-                     , paragraph [] [ text <| "x = " ++ String.fromInt model.x ++ ", y = " ++ String.fromInt model.y ]
-                     , row [ spacing 20, width fill ]
-                        [ Input.text [] { label = Input.labelAbove [] <| text "Width", onChange = ChangeWidth, placeholder = Nothing, text = String.fromInt model.x }
-                        , Input.text [] { label = Input.labelAbove [] <| text "Height", onChange = ChangeHeight, placeholder = Nothing, text = String.fromInt model.y }
-                        ]
-                     ]
-                        ++ (if model.extraContent then
-                                [ paragraph []
-                                    ([ text <| "layers: " ]
-                                        ++ List.indexedMap
-                                            (\index colors ->
-                                                el
-                                                    [ Background.color (Tuple.second colors)
-                                                    , Border.color (Tuple.first colors)
-                                                    , Border.width 4
-                                                    , padding 6
-                                                    ]
-                                                <|
-                                                    text <|
-                                                        String.fromInt <|
-                                                            index
-                                                                + 1
-                                            )
-                                            layersList
-                                    )
-                                , paragraph [] [ text <| "smallDeviceMaxSize = ", text <| String.fromInt smallDeviceMaxSize ]
-                                , paragraph [] <|
-                                    [ text <| "isEmptyPage = "
-                                    , viewBool model.emptyPage
-                                    ]
-                                , paragraph []
-                                    [ text <| "isSmallDevice = "
-                                    , viewBool (isSmallDevice model)
-                                    ]
-                                , paragraph [] [ text <| "isTheInnerPartScrollingVertically = ", viewBool isTheInnerPartScrollingVertically ]
-                                , paragraph [] [ text <| "ua = " ++ model.ua ]
-                                , paragraph [ spacing 200, Font.color <| rgb 1 0 0 ] [ text " Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla vehicula leo imperdiet, efficitur velit at, congue dui. Curabitur dictum et orci eu mattis. Sed eu velit sem. Proin ac fringilla metus, eget feugiat est. Nulla facilisi. Proin ipsum ex, vestibulum eget tempor tempus, vehicula ut mauris. Integer sit amet eros velit. Donec non congue ante. Nunc a nibh eget quam sagittis interdum. Curabitur non finibus tellus, vitae accumsan diam." ]
-                                , Input.text [] { label = Input.labelAbove [] <| text "Field A", onChange = ChangeText, placeholder = Nothing, text = model.text }
-                                , paragraph [] [ text " Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla vehicula leo imperdiet, efficitur velit at, congue dui. Curabitur dictum et orci eu mattis. Sed eu velit sem. Proin ac fringilla metus, eget feugiat est. Nulla facilisi. Proin ipsum ex, vestibulum eget tempor tempus, vehicula ut mauris. Integer sit amet eros velit. Donec non congue ante. Nunc a nibh eget quam sagittis interdum. Curabitur non finibus tellus, vitae accumsan diam." ]
-                                , Input.text [] { label = Input.labelAbove [] <| text "Field B", onChange = ChangeText, placeholder = Nothing, text = model.text }
-                                , paragraph [] [ text " Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla vehicula leo imperdiet, efficitur velit at, congue dui. Curabitur dictum et orci eu mattis. Sed eu velit sem. Proin ac fringilla metus, eget feugiat est. Nulla facilisi. Proin ipsum ex, vestibulum eget tempor tempus, vehicula ut mauris. Integer sit amet eros velit. Donec non congue ante. Nunc a nibh eget quam sagittis interdum. Curabitur non finibus tellus, vitae accumsan diam." ]
-                                , Input.text [] { label = Input.labelAbove [] <| text "Field C", onChange = ChangeText, placeholder = Nothing, text = model.text }
-                                , paragraph [] [ text " Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla vehicula leo imperdiet, efficitur velit at, congue dui. Curabitur dictum et orci eu mattis. Sed eu velit sem. Proin ac fringilla metus, eget feugiat est. Nulla facilisi. Proin ipsum ex, vestibulum eget tempor tempus, vehicula ut mauris. Integer sit amet eros velit. Donec non congue ante. Nunc a nibh eget quam sagittis interdum. Curabitur non finibus tellus, vitae accumsan diam." ]
-                                , Input.text [] { label = Input.labelAbove [] <| text "Field D", onChange = ChangeText, placeholder = Nothing, text = model.text }
-                                , paragraph [] [ text " Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla vehicula leo imperdiet, efficitur velit at, congue dui. Curabitur dictum et orci eu mattis. Sed eu velit sem. Proin ac fringilla metus, eget feugiat est. Nulla facilisi. Proin ipsum ex, vestibulum eget tempor tempus, vehicula ut mauris. Integer sit amet eros velit. Donec non congue ante. Nunc a nibh eget quam sagittis interdum. Curabitur non finibus tellus, vitae accumsan diam." ]
-                                , Input.text [] { label = Input.labelAbove [] <| text "Field E", onChange = ChangeText, placeholder = Nothing, text = model.text }
-                                , paragraph [] [ text " Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla vehicula leo imperdiet, efficitur velit at, congue dui. Curabitur dictum et orci eu mattis. Sed eu velit sem. Proin ac fringilla metus, eget feugiat est. Nulla facilisi. Proin ipsum ex, vestibulum eget tempor tempus, vehicula ut mauris. Integer sit amet eros velit. Donec non congue ante. Nunc a nibh eget quam sagittis interdum. Curabitur non finibus tellus, vitae accumsan diam." ]
-                                , Input.text [] { label = Input.labelAbove [] <| text "Field F", onChange = ChangeText, placeholder = Nothing, text = model.text }
-                                ]
-
-                            else
-                                []
-                           )
-                    )
+                        layer_4 model
 
             layoutAttrs =
                 [ Font.size 16
                 , Font.family []
+                , Border.color <| .layer_1_border_color (layoutTestingConf model) -- green
+                , Background.color <| .layer_1_background_color (layoutTestingConf model) -- green
+                , Border.width <| .layer_1_border_size (layoutTestingConf model)
 
-                -- , Font.color <| rgb 1 0 0
-                , Border.color <| .layer_1_border_color (conf model)
-                , Background.color <| .layer_1_background_color (conf model)
-                , Border.width <| .layer_1_border_size (conf model)
+                -- Here we want to make the first layer positioned
+                -- absolute at the top. This is not possible in elm-ui
+                -- so we add some CSS
+                , htmlAttribute <| Html.Attributes.style "position" "absolute"
+                , htmlAttribute <| Html.Attributes.style "top" "0"
+                , htmlAttribute <| Html.Attributes.id idCover
+                , htmlAttribute <| Html.Events.on "click" (Json.Decode.map ClickOnCover clickDecoder)
                 ]
-                    ++ (if False then
-                            -- [ htmlAttribute <| Html.Attributes.style "position" "absolute"
-                            -- , htmlAttribute <| Html.Attributes.style "top" "0"
-                            -- ]
-                            []
-
-                        else
-                            []
-                       )
         in
         if model.emptyPage then
             layout layoutAttrs layer_2
 
         else
-            layout
-                (layoutAttrs
-                    ++ [ inFront layer_2
-
-                       -- This min-height is needed to collapse the main
-                       -- container when the page is not empty because
-                       -- elm-ui always add "min-height: 100%"
-                       -- , htmlAttribute <| Html.Attributes.style "min-height" "0"
-                       ]
-                )
-            <|
-                none
+            layout (layoutAttrs ++ [ inFront layer_2 ]) <| none
 
 
 type alias Flags =
