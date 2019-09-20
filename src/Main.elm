@@ -71,9 +71,9 @@ confRegular =
     }
 
 
-layoutTestingConf : { a | testing : Bool } -> Conf
+layoutTestingConf : { a | testColors : Bool } -> Conf
 layoutTestingConf model =
-    if model.testing then
+    if model.testColors then
         confTesting
 
     else
@@ -104,7 +104,7 @@ type alias Model =
     , enabled : Bool
     , text : String
     , ua : String
-    , testing : Bool
+    , testColors : Bool
     }
 
 
@@ -117,7 +117,7 @@ init flags =
       , enabled = True
       , text = ""
       , ua = flags.ua
-      , testing = True
+      , testColors = False
       }
     , Cmd.none
     )
@@ -166,7 +166,7 @@ update msg model =
             ( { model | enabled = not model.enabled }, Cmd.none )
 
         ToggleTesting ->
-            ( { model | testing = not model.testing }, Cmd.none )
+            ( { model | testColors = not model.testColors }, Cmd.none )
 
         ChangeHeight y ->
             ( { model | y = Maybe.withDefault 0 (String.toInt y) }, Cmd.none )
@@ -228,18 +228,18 @@ title model =
 layersList : Model -> List ( Color, Color )
 layersList model =
     [ ( .layer_1_border_color (layoutTestingConf model), .layer_1_background_color (layoutTestingConf model) ) ]
-        ++ (if model.emptyPage || isSmallDevice model then
-                []
-
-            else
-                [ ( .layer_2_border_color (layoutTestingConf model), .layer_2_background_color (layoutTestingConf model) ) ]
-           )
-        -- ++ (if isSmallDevice model then
+        -- ++ (if model.emptyPage || isSmallDevice model then
         --         []
         --
         --     else
-        --         [ ( .layer_3_border_color (layoutTestingConf model), .layer_3_background_color (layoutTestingConf model) ) ]
+        --         [ ( .layer_2_border_color (layoutTestingConf model), .layer_2_background_color (layoutTestingConf model) ) ]
         --    )
+        ++ (if isSmallDevice model then
+                []
+
+            else
+                [ ( .layer_3_border_color (layoutTestingConf model), .layer_3_background_color (layoutTestingConf model) ) ]
+           )
         ++ [ ( .layer_4_border_color (layoutTestingConf model), .layer_4_background_color (layoutTestingConf model) ) ]
 
 
@@ -287,7 +287,7 @@ layer_4 model =
          , wrappedRow [ spacing 6 ]
             [ Input.button buttonAttrs { onPress = Just ToggleEnabled, label = text "Disable" }
             , Input.button buttonAttrs { onPress = Just ToggleContent, label = text "Extra content" }
-            , Input.button buttonAttrs { onPress = Just ToggleTesting, label = text "Testing" }
+            , Input.button buttonAttrs { onPress = Just ToggleTesting, label = text "Test Colors" }
             , toggleLink model
             ]
          , paragraph [] [ text <| "x = " ++ String.fromInt model.x ++ ", y = " ++ String.fromInt model.y ]
@@ -383,15 +383,26 @@ view model =
                 , Border.color <| .layer_1_border_color (layoutTestingConf model) -- green
                 , Background.color <| .layer_1_background_color (layoutTestingConf model) -- green
                 , Border.width <| .layer_1_border_size (layoutTestingConf model)
-
-                -- Here we want to make the first layer positioned
-                -- absolute at the top. This is not possible in elm-ui
-                -- so we add some CSS
-                , htmlAttribute <| Html.Attributes.style "position" "absolute"
-                , htmlAttribute <| Html.Attributes.style "top" "0"
                 , htmlAttribute <| Html.Attributes.id idCover
                 , htmlAttribute <| Html.Events.on "click" (Json.Decode.map ClickOnCover clickDecoder)
                 ]
+                    ++ (if isSmallDevice model then
+                            []
+
+                        else
+                            [ Background.image "tokyo.jpg" ]
+                       )
+                    ++ (if model.emptyPage then
+                            []
+
+                        else
+                            [ -- Here we want to make the first layer positioned
+                              -- absolute at the top. This is not possible in elm-ui
+                              -- so we add some CSS
+                              htmlAttribute <| Html.Attributes.style "position" "fixed"
+                            , htmlAttribute <| Html.Attributes.style "top" "0"
+                            ]
+                       )
         in
         if model.emptyPage then
             layout layoutAttrs layer_2
