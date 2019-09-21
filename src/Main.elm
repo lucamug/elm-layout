@@ -252,6 +252,19 @@ toggleLink model =
         link buttonAttrs { label = text "Empty Page", url = "index-empty.html" }
 
 
+cssToBlockContent : String
+cssToBlockContent =
+    -- From https://css-tricks.com/prevent-page-scrolling-when-a-modal-is-open/
+    -- padding-right: 15px;
+    -- position: fixed;
+    """
+    body {
+        height: 100vh;
+        overflow-y: hidden;
+     }
+    """
+
+
 layer_4 : Model -> Element Msg
 layer_4 model =
     column
@@ -283,7 +296,8 @@ layer_4 model =
                     []
                )
         )
-        ([ title model
+        ([ html <| Html.node "style" [] [ Html.text cssToBlockContent ]
+         , title model
          , wrappedRow [ spacing 6 ]
             [ Input.button buttonAttrs { onPress = Just ToggleEnabled, label = text "Disable" }
             , Input.button buttonAttrs { onPress = Just ToggleContent, label = text "Extra content" }
@@ -386,7 +400,7 @@ view model =
                 , htmlAttribute <| Html.Attributes.id idCover
                 , htmlAttribute <| Html.Events.on "click" (Json.Decode.map ClickOnCover clickDecoder)
                 ]
-                    ++ (if isSmallDevice model then
+                    ++ (if isSmallDevice model || not model.emptyPage then
                             []
 
                         else
