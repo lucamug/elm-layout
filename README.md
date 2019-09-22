@@ -58,13 +58,13 @@ Here you can see how the iPhone plus (414 x 736 px) fit in this definition:
     * the inner part should be scrollable if the content is small
     * on NON-empty pages the content underneath should be covered with a dark layer that, when clicked, should close the widget
     * on empty pages the modal should be floating above an image
+
 * On __small screen__ (like mobile phones)
     * The modal should go from top to bottom of the screen
     * the content should be top aligned in case is small
     * should have a set maximum width
     * on empty pages there should be a gray layer beneath (no background image)
-    * on NON-empy pages, the content underneath should be visible is the screen is wider that the modal (like in landscape orientation)
-* it should graceful degrade in case window.innerHeight returns zero or negative numbers (it seems happening when using [Chrome Custom Tabs](https://developer.chrome.com/multidevice/android/customtabs))
+    * on NON-empty pages the content underneath should be covered with a dark layer that, when clicked, should close the widget
 
 ## The execution
 

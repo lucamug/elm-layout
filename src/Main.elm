@@ -19,12 +19,6 @@ import Json.Decode
 -- ██      ██    ██ ██ ██  ██ ███████    ██    ███████ ██ ██  ██    ██    ███████
 -- ██      ██    ██ ██  ██ ██      ██    ██    ██   ██ ██  ██ ██    ██         ██
 --  ██████  ██████  ██   ████ ███████    ██    ██   ██ ██   ████    ██    ███████
---
--- ███████ ███████ ████████ ████████ ██ ███    ██  ██████  ███████
--- ██      ██         ██       ██    ██ ████   ██ ██       ██
--- ███████ █████      ██       ██    ██ ██ ██  ██ ██   ███ ███████
---      ██ ██         ██       ██    ██ ██  ██ ██ ██    ██      ██
--- ███████ ███████    ██       ██    ██ ██   ████  ██████  ███████
 
 
 smallDeviceMaxSize : Int
@@ -33,14 +27,9 @@ smallDeviceMaxSize =
     500
 
 
-marginAroundWidgetWhenNotMobile : Int
-marginAroundWidgetWhenNotMobile =
-    40
-
-
-maxContentWidth : Int
-maxContentWidth =
-    smallDeviceMaxSize + marginAroundWidgetWhenNotMobile
+maxContentWidth : Model -> Int
+maxContentWidth model =
+    smallDeviceMaxSize
 
 
 idCover : String
@@ -109,6 +98,7 @@ type alias Model =
     , text : String
     , ua : String
     , testColors : Bool
+    , marginAroundWidgetWhenNotMobile : Int
     }
 
 
@@ -130,6 +120,7 @@ init flags =
       , text = ""
       , ua = flags.ua
       , testColors = False
+      , marginAroundWidgetWhenNotMobile = 40
       }
     , Cmd.none
     )
@@ -148,11 +139,12 @@ type Msg
     | OnResize Int Int
     | ChangeHeight String
     | ChangeWidth String
+    | ChangeMarginAroundWidgetWhenNotMobile String
+    | ChangeText String
     | ToggleExtraContent
     | TogglePageContent
     | ToggleEnabled
     | ToggleTestColors
-    | ChangeText String
     | ClickOnCover MouseClickData
 
 
@@ -184,6 +176,18 @@ update msg model =
         OnResize x y ->
             ( { model | x = x, y = y }, Cmd.none )
 
+        ChangeHeight y ->
+            ( { model | y = Maybe.withDefault 0 (String.toInt y) }, Cmd.none )
+
+        ChangeWidth x ->
+            ( { model | x = Maybe.withDefault 0 (String.toInt x) }, Cmd.none )
+
+        ChangeText text ->
+            ( { model | text = text }, Cmd.none )
+
+        ChangeMarginAroundWidgetWhenNotMobile marginAroundWidgetWhenNotMobile ->
+            ( { model | marginAroundWidgetWhenNotMobile = Maybe.withDefault 0 (String.toInt marginAroundWidgetWhenNotMobile) }, Cmd.none )
+
         ToggleExtraContent ->
             ( { model | extraContent = not model.extraContent }, Cmd.none )
 
@@ -195,15 +199,6 @@ update msg model =
 
         ToggleTestColors ->
             ( { model | testColors = not model.testColors }, Cmd.none )
-
-        ChangeHeight y ->
-            ( { model | y = Maybe.withDefault 0 (String.toInt y) }, Cmd.none )
-
-        ChangeWidth x ->
-            ( { model | x = Maybe.withDefault 0 (String.toInt x) }, Cmd.none )
-
-        ChangeText text ->
-            ( { model | text = text }, Cmd.none )
 
         ClickOnCover mouseClickData ->
             if not model.pageContent && mouseClickData.id1 == idCover then
@@ -287,15 +282,6 @@ buttonAttrs =
     ]
 
 
-title : { a | pageContent : Bool } -> Element msg
-title model =
-    if model.pageContent then
-        el [ Font.size 30 ] <| text "Empty Page"
-
-    else
-        el [ Font.size 30 ] <| text "NOT Empty Page"
-
-
 layer_modal_attrs : Model -> List (Attribute msg)
 layer_modal_attrs model =
     let
@@ -315,7 +301,7 @@ layer_modal_attrs model =
     in
     [ paddingXY 30 30
     , spacing 20
-    , width (fill |> maximum maxContentWidth)
+    , width (fill |> maximum (maxContentWidth model))
     , height fill
     , centerX
     , Border.color <| .layer_modal_content_border_color (layoutTestingConf model) -- yellow
@@ -332,10 +318,10 @@ layer_modal_content model =
     let
         buttonToggleExtraContent =
             if model.extraContent then
-                "Remove content"
+                "Less content"
 
             else
-                "Add content"
+                "More content"
 
         buttonToggleColors =
             if model.testColors then
@@ -346,7 +332,7 @@ layer_modal_content model =
 
         buttonTogglePageContent =
             if model.pageContent then
-                "NOT Empty Page"
+                "NON empty Page"
 
             else
                 "Empty Page"
@@ -354,7 +340,6 @@ layer_modal_content model =
         extraContent =
             if model.extraContent then
                 [ paragraph [] [ text <| "smallDeviceMaxSize = ", text <| String.fromInt smallDeviceMaxSize ]
-                , paragraph [] [ text <| "isEmptyPage = ", viewBool model.pageContent ]
                 , paragraph [] [ text <| "isSmallDevice = ", viewBool (isSmallDevice model) ]
                 , paragraph [] [ text <| "isTheInnerPartUnscrollable = ", viewBool <| isTheInnerPartUnscrollable model ]
                 , paragraph [] [ text <| "isBackgroundImageUnnecessary = ", viewBool <| isBackgroundImageUnnecessary model ]
@@ -386,8 +371,7 @@ layer_modal_content model =
     in
     column
         (layer_modal_attrs model)
-        ([ title model
-         , wrappedRow [ spacing 6 ]
+        ([ wrappedRow [ spacing 6 ]
             [ Input.button buttonAttrs { onPress = Just ToggleEnabled, label = text "Disable" }
             , Input.button buttonAttrs { onPress = Just ToggleExtraContent, label = text buttonToggleExtraContent }
             , Input.button buttonAttrs { onPress = Just ToggleTestColors, label = text buttonToggleColors }
@@ -397,6 +381,7 @@ layer_modal_content model =
          , row [ spacing 20, width fill ]
             [ Input.text [] { label = Input.labelAbove [] <| text "Width", onChange = ChangeWidth, placeholder = Nothing, text = String.fromInt model.x }
             , Input.text [] { label = Input.labelAbove [] <| text "Height", onChange = ChangeHeight, placeholder = Nothing, text = String.fromInt model.y }
+            , Input.text [] { label = Input.labelAbove [] <| text "Margin", onChange = ChangeMarginAroundWidgetWhenNotMobile, placeholder = Nothing, text = String.fromInt model.marginAroundWidgetWhenNotMobile }
             ]
          ]
             ++ extraContent
@@ -414,10 +399,7 @@ layer_modal_content model =
 
 view : Model -> Html.Html Msg
 view model =
-    if not model.enabled then
-        Html.button [ Html.Events.onClick ToggleEnabled ] [ Html.text "Enable" ]
-
-    else
+    if model.enabled then
         let
             layer_modal_rounded =
                 if isSmallDevice model then
@@ -425,8 +407,8 @@ view model =
 
                 else
                     el
-                        [ width (px maxContentWidth |> maximum (model.x - marginAroundWidgetWhenNotMobile))
-                        , height (shrink |> maximum (model.y - marginAroundWidgetWhenNotMobile))
+                        [ width (px (maxContentWidth model) |> maximum (model.x - model.marginAroundWidgetWhenNotMobile))
+                        , height (shrink |> maximum (model.y - model.marginAroundWidgetWhenNotMobile))
                         , centerX
                         , centerY
                         , Border.rounded <| .border_rounded (layoutTestingConf model)
@@ -471,6 +453,15 @@ view model =
 
         else
             layout (layoutAttrs ++ [ inFront layer_modal_rounded ]) <| none
+
+    else
+        Html.button
+            [ Html.Events.onClick ToggleEnabled
+            , Html.Attributes.style "margin" "40px"
+            , Html.Attributes.style "padding" "20px"
+            , Html.Attributes.style "font-size" "20px"
+            ]
+            [ Html.text "Enable Modal" ]
 
 
 
