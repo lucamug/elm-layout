@@ -92,12 +92,12 @@ confRegular =
 type alias Model =
     { x : Int
     , y : Int
-    , pageContent : Bool
-    , extraContent : Bool
+    , isEmptyPage : Bool
     , enabled : Bool
+    , extraContent : Bool
+    , testColors : Bool
     , text : String
     , ua : String
-    , testColors : Bool
     , marginAroundWidgetWhenNotMobile : Int
     }
 
@@ -114,12 +114,12 @@ init : Flags -> ( Model, Cmd Msg )
 init flags =
     ( { x = flags.x
       , y = flags.y
-      , pageContent = flags.pageContent
-      , extraContent = True
+      , isEmptyPage = flags.isEmptyPage
       , enabled = True
+      , extraContent = True
+      , testColors = False
       , text = ""
       , ua = flags.ua
-      , testColors = False
       , marginAroundWidgetWhenNotMobile = 40
       }
     , Cmd.none
@@ -142,7 +142,7 @@ type Msg
     | ChangeMarginAroundWidgetWhenNotMobile String
     | ChangeText String
     | ToggleExtraContent
-    | TogglePageContent
+    | ToggleEmptyPage
     | ToggleEnabled
     | ToggleTestColors
     | ClickOnCover MouseClickData
@@ -156,7 +156,7 @@ type Msg
 -- ██       ██████  ██   ██    ██    ███████
 
 
-port togglePageContent : () -> Cmd msg
+port toggleEmptyPage : () -> Cmd msg
 
 
 
@@ -191,8 +191,8 @@ update msg model =
         ToggleExtraContent ->
             ( { model | extraContent = not model.extraContent }, Cmd.none )
 
-        TogglePageContent ->
-            ( { model | pageContent = not model.pageContent }, togglePageContent () )
+        ToggleEmptyPage ->
+            ( { model | isEmptyPage = not model.isEmptyPage }, toggleEmptyPage () )
 
         ToggleEnabled ->
             ( { model | enabled = not model.enabled }, Cmd.none )
@@ -201,7 +201,7 @@ update msg model =
             ( { model | testColors = not model.testColors }, Cmd.none )
 
         ClickOnCover mouseClickData ->
-            if not model.pageContent && mouseClickData.id1 == idCover then
+            if not model.isEmptyPage && mouseClickData.id1 == idCover then
                 ( { model | enabled = not model.enabled }, Cmd.none )
 
             else
@@ -240,19 +240,19 @@ clickDecoder =
         (Json.Decode.at [ "target", "parentElement", "parentElement", "id" ] Json.Decode.string)
 
 
-isSmallDevice : Model -> Bool
-isSmallDevice model =
+isSmallWindow : Model -> Bool
+isSmallWindow model =
     model.x < smallDeviceMaxSize || model.y < smallDeviceMaxSize
 
 
 isTheInnerPartUnscrollable : Model -> Bool
 isTheInnerPartUnscrollable model =
-    isSmallDevice model && model.pageContent
+    isSmallWindow model && model.isEmptyPage
 
 
 isBackgroundImageUnnecessary : Model -> Bool
 isBackgroundImageUnnecessary model =
-    isSmallDevice model || not model.pageContent
+    isSmallWindow model || not model.isEmptyPage
 
 
 
@@ -278,7 +278,13 @@ buttonAttrs =
     , Border.width 1
     , Border.color <| rgba 0 0 0 0.2
     , Border.rounded 20
-    , Background.color <| rgba 1 1 1 0.7
+    , Background.color <| rgba 0 0 0 0.1
+    , mouseOver
+        [ Background.color <| rgba 0 0 0 0.05
+        , Border.shadow { offset = ( 0, 3 ), size = 0, blur = 3, color = rgba 0 0 0 0.2 }
+        ]
+    , Border.shadow { offset = ( 0, 0 ), size = 0, blur = 0, color = rgba 0 0 0 0 }
+    , htmlAttribute <| Html.Attributes.style "transition" "all 0.2s"
     ]
 
 
@@ -286,11 +292,13 @@ layer_modal_attrs : Model -> List (Attribute msg)
 layer_modal_attrs model =
     let
         borderRounded_attr =
-            if isSmallDevice model then
+            if isSmallWindow model then
                 []
 
             else
-                [ Border.rounded <| .border_rounded (layoutTestingConf model) ]
+                [ Border.rounded <|
+                    .border_rounded (layoutTestingConf model)
+                ]
 
         scrollbarY_attr =
             if isTheInnerPartUnscrollable model then
@@ -313,6 +321,11 @@ layer_modal_attrs model =
         ++ scrollbarY_attr
 
 
+addStyle : String -> Element msg
+addStyle style =
+    html <| Html.node "style" [] [ Html.text <| style ]
+
+
 layer_modal_content : Model -> Element Msg
 layer_modal_content model =
     let
@@ -330,8 +343,8 @@ layer_modal_content model =
             else
                 "Test colors"
 
-        buttonTogglePageContent =
-            if model.pageContent then
+        buttonToggleEmptyPage =
+            if model.isEmptyPage then
                 "NON empty Page"
 
             else
@@ -340,7 +353,8 @@ layer_modal_content model =
         extraContent =
             if model.extraContent then
                 [ paragraph [] [ text <| "smallDeviceMaxSize = ", text <| String.fromInt smallDeviceMaxSize ]
-                , paragraph [] [ text <| "isSmallDevice = ", viewBool (isSmallDevice model) ]
+                , paragraph [] [ text <| "isEmptyPage = ", viewBool model.isEmptyPage ]
+                , paragraph [] [ text <| "isSmallWindow = ", viewBool (isSmallWindow model) ]
                 , paragraph [] [ text <| "isTheInnerPartUnscrollable = ", viewBool <| isTheInnerPartUnscrollable model ]
                 , paragraph [] [ text <| "isBackgroundImageUnnecessary = ", viewBool <| isBackgroundImageUnnecessary model ]
                 , paragraph [] [ text <| "ua = " ++ model.ua ]
@@ -361,13 +375,17 @@ layer_modal_content model =
             else
                 []
 
-        extraCss =
-            if not model.pageContent then
+        extraCss1 =
+            if not model.isEmptyPage then
                 -- From https://css-tricks.com/prevent-page-scrolling-when-a-modal-is-open/
-                [ html <| Html.node "style" [] [ Html.text "body {height: 100vh; overflow-y: hidden;}" ] ]
+                [ addStyle "body {height: 100vh; overflow-y: hidden;}" ]
 
             else
                 []
+
+        extraCss2 =
+            -- From https://css-tricks.com/snippets/css/momentum-scrolling-on-ios-overflow-elements/
+            [ addStyle ".s.sby {overflow-y: scroll; -webkit-overflow-scrolling: touch;}" ]
     in
     column
         (layer_modal_attrs model)
@@ -375,7 +393,7 @@ layer_modal_content model =
             [ Input.button buttonAttrs { onPress = Just ToggleEnabled, label = text "Disable" }
             , Input.button buttonAttrs { onPress = Just ToggleExtraContent, label = text buttonToggleExtraContent }
             , Input.button buttonAttrs { onPress = Just ToggleTestColors, label = text buttonToggleColors }
-            , Input.button buttonAttrs { onPress = Just TogglePageContent, label = text buttonTogglePageContent }
+            , Input.button buttonAttrs { onPress = Just ToggleEmptyPage, label = text buttonToggleEmptyPage }
             ]
          , paragraph [] [ text <| "x = " ++ String.fromInt model.x ++ ", y = " ++ String.fromInt model.y ]
          , row [ spacing 20, width fill ]
@@ -385,7 +403,8 @@ layer_modal_content model =
             ]
          ]
             ++ extraContent
-            ++ extraCss
+            ++ extraCss1
+            ++ extraCss2
         )
 
 
@@ -402,13 +421,19 @@ view model =
     if model.enabled then
         let
             layer_modal_rounded =
-                if isSmallDevice model then
+                if isSmallWindow model then
                     layer_modal_content model
 
                 else
                     el
-                        [ width (px (maxContentWidth model) |> maximum (model.x - model.marginAroundWidgetWhenNotMobile))
-                        , height (shrink |> maximum (model.y - model.marginAroundWidgetWhenNotMobile))
+                        [ width
+                            (px (maxContentWidth model)
+                                |> maximum (model.x - model.marginAroundWidgetWhenNotMobile)
+                            )
+                        , height
+                            (shrink
+                                |> maximum (model.y - model.marginAroundWidgetWhenNotMobile)
+                            )
                         , centerX
                         , centerY
                         , Border.rounded <| .border_rounded (layoutTestingConf model)
@@ -434,7 +459,7 @@ view model =
                         else
                             [ Background.image "http://elm-layout2.surge.sh/tokyo.jpg" ]
                        )
-                    ++ (if model.pageContent then
+                    ++ (if model.isEmptyPage then
                             []
 
                         else
@@ -448,7 +473,7 @@ view model =
                             ]
                        )
         in
-        if model.pageContent then
+        if model.isEmptyPage then
             layout layoutAttrs layer_modal_rounded
 
         else
@@ -475,7 +500,7 @@ view model =
 type alias Flags =
     { x : Int
     , y : Int
-    , pageContent : Bool
+    , isEmptyPage : Bool
     , ua : String
     }
 
